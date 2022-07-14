@@ -1,6 +1,5 @@
 from __future__ import annotations
 from dotenv import load_dotenv
-import pyautogui
 import telegram
 import requests
 import time
@@ -29,11 +28,6 @@ GENERAL_PERCENT: float = 0
 
 def send_message(bot, message):
     bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
-
-
-def cursor_move():
-    pyautogui.move(1, 0)
-    pyautogui.move(-1, 0)
 
 
 def buy(name, cur_price, bot):
@@ -128,14 +122,12 @@ def main():
             prev_response = response.text
             was_offline = False
             time.sleep(RETRY_TIME)
-            cursor_move()
         else:
             if not was_offline:
                 idle_msg = 'котировки не поступают'
                 print(idle_msg)
             was_offline = True
             time.sleep(RETRY_TIME)
-            cursor_move()
 
 
 if __name__ == '__main__':
