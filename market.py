@@ -106,7 +106,7 @@ def main():
     while True:
         print(f'итерация: {count}')
         response = requests.get(
-            url=f'{URL_static}{urls.urls_str_test}', params=PARAMS
+            url=f'{URL_static}{urls.urls_str}', params=PARAMS
             )
         if response.text != prev_response:
             if was_offline:
