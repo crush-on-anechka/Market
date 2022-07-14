@@ -14,16 +14,16 @@ TELEGRAM_CHAT_ID: str = os.getenv('TELEGRAM_CHAT_ID')
 PARAMS = {'fieldmap': 'indices.minimal'}
 URL_static = 'https://api.investing.com/api/financialdata/table/list/'
 
-RETRY_TIME: int = 60            # 60 = котировка запрашивается раз в минуту!
-INTERVAL_MINUTES: int = 25      # 25 = кол-во интервалов мониторинга изменения
-GOLDEN_FIGURE: float = 3.1      # 4.4 = на какое кол-во % мониторим изменение
-TARGET_PERCENT: float = 2.0     # 2.2 = целевая прибыль/убыток по сделке в %
-
 DATA: list = {}
 CONS_DATA: list = []
 NAMES_LIST = []
 TRADE: dict = {}
 GENERAL_PERCENT: float = 0
+
+RETRY_TIME = int(input('Частота запроса в секундах (60): '))
+INTERVAL_MINUTES = int(input('кол-во интервалов мониторинга изменения (25): '))
+GOLDEN_FIGURE = float(input('на какое кол-во % мониторим изменение (4.4): '))
+TARGET_PERCENT = float(input('целевая прибыль/убыток по сделке в % (2.2): '))
 
 
 def send_message(bot, message):
@@ -57,7 +57,7 @@ def sell(name, cur_price, bot):
     TRADE.pop(name)
 
 
-def get_data(CONS_DATA: list[dict], count: int, bot):
+def get_data(CONS_DATA: list[dict], count, bot):
     """Получает данные по каждой итерации из main, по каждой компании
        расчитывает текущую цену и цену на момент времени в прошлом за
        выбранный интервал.
@@ -102,20 +102,26 @@ def main():
     print(welcome_msg)
     count: int = 1
     prev_response = ''
+    non_trade_count: int = 0
     while True:
+        if non_trade_count > 720:
+            count = 1
         response = requests.get(
             url=f'{URL_static}{urls.urls_str}', params=PARAMS
             )
         if response.text != prev_response:
             print(f'итерация {count}: скрипт запущен и получает новые данные')
+            non_trade_count = 0
         else:
-            print(f'итерация {count}: новые данные не поступают')
+            non_trade_count += 1
+            print(f'итерация {count}: новые данные не поступают '
+                  f'{non_trade_count} мин.')
         for data in response.json()['data']:
             name = data['symbol']
             cur_price = data['data'][1]
             NAMES_LIST.append(name)
             DATA[name] = {count: cur_price}
-        print('TSLA: ', DATA['TSLA'][count])
+        print('TSLA:', DATA['TSLA'][count])
         CONS_DATA.append(DATA.copy())
         get_data(CONS_DATA, count, bot)
         prev_response = response.text
@@ -124,8 +130,4 @@ def main():
 
 
 if __name__ == '__main__':
-    # try:
     main()
-    # except Exception as error:
-    #     print(f'возникла ошибка - {error}')
-    #     time.sleep(RETRY_TIME)
