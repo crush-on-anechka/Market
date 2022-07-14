@@ -102,29 +102,23 @@ def main():
     print(welcome_msg)
     count: int = 1
     prev_response = ''
-    was_offline = True
     while True:
-        print(f'итерация: {count}')
         response = requests.get(
             url=f'{URL_static}{urls.urls_str}', params=PARAMS
             )
         if response.text != prev_response:
-            if was_offline:
-                print('скрипт запущен и получает данные')
-            for data in response.json()['data']:
-                name = data['symbol']
-                cur_price = data['data'][1]
-                NAMES_LIST.append(name)
-                DATA[name] = {count: cur_price}
-            CONS_DATA.append(DATA.copy())
-            get_data(CONS_DATA, count, bot)
-            prev_response = response.text
-            was_offline = False
+            print(f'итерация {count}: скрипт запущен и получает новые данные')
         else:
-            if not was_offline:
-                idle_msg = 'котировки не поступают'
-                print(idle_msg)
-            was_offline = True
+            print(f'итерация {count}: новые данные не поступают')
+        for data in response.json()['data']:
+            name = data['symbol']
+            cur_price = data['data'][1]
+            NAMES_LIST.append(name)
+            DATA[name] = {count: cur_price}
+        print('TSLA: ', DATA['TSLA'][1])
+        CONS_DATA.append(DATA.copy())
+        get_data(CONS_DATA, count, bot)
+        prev_response = response.text
         count += 1
         time.sleep(RETRY_TIME)
 
