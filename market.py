@@ -100,7 +100,7 @@ def main():
     >> отслеживаемое движение: {GOLDEN_FIGURE}%
     >> целевая прибыль/убыток: {TARGET_PERCENT}%'''
     print(welcome_msg)
-    count: int = 1 - INTERVAL_MINUTES
+    count: int = 1
     prev_response = ''
     was_offline = True
     while True:
@@ -110,7 +110,6 @@ def main():
             )
         if response.text != prev_response:
             if was_offline:
-                count += INTERVAL_MINUTES
                 print('скрипт запущен и получает данные')
             for data in response.json()['data']:
                 name = data['symbol']
@@ -119,16 +118,15 @@ def main():
                 DATA[name] = {count: cur_price}
             CONS_DATA.append(DATA.copy())
             get_data(CONS_DATA, count, bot)
-            count += 1
             prev_response = response.text
             was_offline = False
-            time.sleep(RETRY_TIME)
         else:
             if not was_offline:
                 idle_msg = 'котировки не поступают'
                 print(idle_msg)
             was_offline = True
-            time.sleep(RETRY_TIME)
+        count += 1
+        time.sleep(RETRY_TIME)
 
 
 if __name__ == '__main__':
