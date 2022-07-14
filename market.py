@@ -14,8 +14,8 @@ TELEGRAM_CHAT_ID: str = os.getenv('TELEGRAM_CHAT_ID')
 PARAMS = {'fieldmap': 'indices.minimal'}
 URL_static = 'https://api.investing.com/api/financialdata/table/list/'
 
-RETRY_TIME: int = 5            # 60 = котировка запрашивается раз в минуту!
-INTERVAL_MINUTES: int = 2      # 25 = кол-во интервалов мониторинга изменения
+RETRY_TIME: int = 60            # 60 = котировка запрашивается раз в минуту!
+INTERVAL_MINUTES: int = 25      # 25 = кол-во интервалов мониторинга изменения
 GOLDEN_FIGURE: float = 3.1      # 4.4 = на какое кол-во % мониторим изменение
 TARGET_PERCENT: float = 2.0     # 2.2 = целевая прибыль/убыток по сделке в %
 
