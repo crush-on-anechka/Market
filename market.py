@@ -115,7 +115,7 @@ def main():
             cur_price = data['data'][1]
             NAMES_LIST.append(name)
             DATA[name] = {count: cur_price}
-        print('TSLA: ', DATA['TSLA'][1])
+        print('TSLA: ', DATA['TSLA'][count])
         CONS_DATA.append(DATA.copy())
         get_data(CONS_DATA, count, bot)
         prev_response = response.text
@@ -124,8 +124,8 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except Exception as error:
-        print(f'возникла ошибка - {error}')
-        time.sleep(RETRY_TIME)
+    # try:
+    main()
+    # except Exception as error:
+    #     print(f'возникла ошибка - {error}')
+    #     time.sleep(RETRY_TIME)

@@ -505,7 +505,7 @@ urls = {
     'AZO': 8282,
     'NVR': 21255,
 }
-urls_str_test = '1006169%2C6497%2C985558%2C44412%2C13994%2C6435%2C8274%2C6408'
+# urls_str_test = '1006169%2C6497%2C985558%2C44412%2C13994%2C6435%2C8274'
 
 urls_str = ''
 for id in urls.values():
