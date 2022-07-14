@@ -20,10 +20,10 @@ NAMES_LIST = []
 TRADE: dict = {}
 GENERAL_PERCENT: float = 0
 
-RETRY_TIME = int(input('Частота запроса в секундах (60): '))
-INTERVAL_MINUTES = int(input('кол-во интервалов мониторинга изменения (25): '))
-GOLDEN_FIGURE = float(input('на какое кол-во % мониторим изменение (4.4): '))
-TARGET_PERCENT = float(input('целевая прибыль/убыток по сделке в % (2.2): '))
+RETRY_TIME = 60
+INTERVAL_MINUTES = 25
+GOLDEN_FIGURE = 2.1
+TARGET_PERCENT = 1.1
 
 
 def send_message(bot, message):
