@@ -14,12 +14,12 @@ TELEGRAM_CHAT_ID: str = os.getenv('TELEGRAM_CHAT_ID')
 PARAMS = {'fieldmap': 'indices.minimal'}
 URL_static = 'https://api.investing.com/api/financialdata/table/list/'
 
-RETRY_TIME: int = 60            # 60 = котировка запрашивается раз в минуту!
-INTERVAL_MINUTES: int = 25      # 25 = кол-во интервалов мониторинга изменения
+RETRY_TIME: int = 5            # 60 = котировка запрашивается раз в минуту!
+INTERVAL_MINUTES: int = 2      # 25 = кол-во интервалов мониторинга изменения
 GOLDEN_FIGURE: float = 3.1      # 4.4 = на какое кол-во % мониторим изменение
 TARGET_PERCENT: float = 2.0     # 2.2 = целевая прибыль/убыток по сделке в %
 
-DATA: dict = {}
+DATA: list = {}
 CONS_DATA: list = []
 NAMES_LIST = []
 TRADE: dict = {}
@@ -104,8 +104,9 @@ def main():
     prev_response = ''
     was_offline = True
     while True:
+        print(f'итерация: {count}')
         response = requests.get(
-            url=f'{URL_static}{urls.urls_str}', params=PARAMS
+            url=f'{URL_static}{urls.urls_str_test}', params=PARAMS
             )
         if response.text != prev_response:
             if was_offline:
@@ -131,4 +132,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as error:
+        print(f'возникла ошибка - {error}')
+        time.sleep(RETRY_TIME)
