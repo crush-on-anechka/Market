@@ -507,7 +507,10 @@ urls = {
 }
 # urls_str_test = '1006169%2C6497%2C985558%2C44412%2C13994%2C6435%2C8274'
 
-urls_str = ''
-for id in urls.values():
-    urls_str += '%2C' + str(id)
-urls_str = urls_str[3:]
+
+def urls_str():
+    urls_str = ''
+    for id in urls.values():
+        urls_str += '%2C' + str(id)
+    urls_str = urls_str[3:]
+    return urls_str

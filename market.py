@@ -16,14 +16,22 @@ URL_static = 'https://api.investing.com/api/financialdata/table/list/'
 
 DATA: list = {}
 CONS_DATA: list = []
-NAMES_LIST = []
+NAMES_LIST: set = set()
 TRADE: dict = {}
 GENERAL_PERCENT: float = 0
 
 RETRY_TIME = 60
-INTERVAL_MINUTES = 25
+INTERVAL_MINUTES = 20
 GOLDEN_FIGURE = 2.1
 TARGET_PERCENT = 1.1
+
+
+def make_urls_str():
+    urls_str = ''
+    for id in urls.urls.values():
+        urls_str += '%2C' + str(id)
+    urls_str = urls_str[3:]
+    return urls_str
 
 
 def send_message(bot, message):
@@ -85,6 +93,16 @@ def get_data(CONS_DATA: list[dict], count, bot):
                 )
             if diff_percent * -1 > GOLDEN_FIGURE:
                 buy(name, cur_price, bot)
+        # тестовый вывод для отладки
+        if name == 'TSLA':
+            print(f'TSLA >> cur_price: {cur_price}, '
+                  f'prev_price: {prev_price}')
+            try:
+                print(f'diff_percent: {diff_percent}%')
+            except Exception:
+                pass
+            if TRADE.get(name) is not None:
+                print(f'в портфеле по {TRADE.get(name)}')
 
 
 def main():
@@ -107,10 +125,10 @@ def main():
         if non_trade_count > 720:
             count = 1
         response = requests.get(
-            url=f'{URL_static}{urls.urls_str}', params=PARAMS
+            url=f'{URL_static}{make_urls_str()}', params=PARAMS
             )
         if response.text != prev_response:
-            print(f'итерация {count}: скрипт запущен и получает новые данные')
+            print(f'итерация {count}: скрипт запущен и получает данные')
             non_trade_count = 0
         else:
             non_trade_count += 1
@@ -119,9 +137,8 @@ def main():
         for data in response.json()['data']:
             name = data['symbol']
             cur_price = data['data'][1]
-            NAMES_LIST.append(name)
+            NAMES_LIST.add(name)
             DATA[name] = {count: cur_price}
-        print('TSLA:', DATA['TSLA'][count])
         CONS_DATA.append(DATA.copy())
         get_data(CONS_DATA, count, bot)
         prev_response = response.text
