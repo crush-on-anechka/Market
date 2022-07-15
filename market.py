@@ -36,6 +36,7 @@ def make_urls_str():
 
 def send_message(bot, message):
     bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+    print(message)
 
 
 def buy(name, cur_price, bot):
@@ -122,7 +123,7 @@ def main():
     prev_response = ''
     non_trade_count: int = 0
     while True:
-        if non_trade_count > 720:
+        if non_trade_count > 60:
             count = 1
         response = requests.get(
             url=f'{URL_static}{make_urls_str()}', params=PARAMS
