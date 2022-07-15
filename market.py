@@ -22,8 +22,8 @@ GENERAL_PERCENT: float = 0
 
 RETRY_TIME = 60
 INTERVAL_MINUTES = 20
-GOLDEN_FIGURE = 2.1
-TARGET_PERCENT = 1.1
+GOLDEN_FIGURE = 3.1
+TARGET_PERCENT = 1.7
 
 
 def make_urls_str():
@@ -55,8 +55,8 @@ def sell(name, cur_price, bot):
     result = - round(
         (TRADE.get(name) - cur_price) / cur_price * 100, 1
         )
-    sell_msg = f'{name}: продажа, результат: {result}% '
-    f'({TRADE.get(name)} >> {cur_price})'
+    sell_msg = (f'{name}: продажа, результат: {result}% '
+                f'({TRADE.get(name)} >> {cur_price})')
     send_message(bot, sell_msg)
     global GENERAL_PERCENT
     GENERAL_PERCENT += result
