@@ -19,11 +19,19 @@ CONS_DATA: list = []
 NAMES_LIST: set = set()
 TRADE: dict = {}
 GENERAL_PERCENT: float = 0
+TRADE_MAX_LEN: int = 0
+ROUND_VOLUME: int = 2
 
-RETRY_TIME = 60
-INTERVAL_MINUTES = 20
-GOLDEN_FIGURE = 3.1
-TARGET_PERCENT = 1.7
+RETRY_TIME = 60         #        60
+INTERVAL_MINUTES = 20   #        20
+GOLDEN_FIGURE = 2.1     # 2.1   3.1
+TARGET_PERCENT = 1.1    # 1.1   1.7
+
+WELCOME_MSG = f'''запуск скрипта с параметрами:
+    >> запрос котировок: каждые {RETRY_TIME} секунд
+    >> динамика отслеживается за {INTERVAL_MINUTES} интервалов
+    >> отслеживаемое движение: {GOLDEN_FIGURE}%
+    >> целевая прибыль/убыток: {TARGET_PERCENT}%'''
 
 
 def make_urls_str():
@@ -45,6 +53,9 @@ def buy(name, cur_price, bot):
         TRADE[name] = cur_price
         buy_msg = f'{name}: покупка по {cur_price}'
         send_message(bot, buy_msg)
+        result_msg = f'''>> Общий результат торговли: {round(GENERAL_PERCENT, ROUND_VOLUME)}%
+>> Открытые позиции: {TRADE}'''
+        send_message(bot, result_msg)
 
 
 def sell(name, cur_price, bot):
@@ -53,17 +64,19 @@ def sell(name, cur_price, bot):
        торговли к глобальном итогу и выводит инфо о сделке и итог в терминал.
     """
     result = - round(
-        (TRADE.get(name) - cur_price) / cur_price * 100, 1
+        (TRADE.get(name) - cur_price) / cur_price * 100, ROUND_VOLUME
         )
     sell_msg = (f'{name}: продажа, результат: {result}% '
                 f'({TRADE.get(name)} >> {cur_price})')
     send_message(bot, sell_msg)
     global GENERAL_PERCENT
     GENERAL_PERCENT += result
-    result_msg = f'''>> Общий результат торговли: {round(GENERAL_PERCENT, 1)}%
->> Открытые позиции: {TRADE}%'''
-    send_message(bot, result_msg)
+    TRADE_MAX_LEN = max([num + 1 for num, keys in enumerate(TRADE.keys())])
     TRADE.pop(name)
+    result_msg = f'''>> Общий результат торговли: {round(GENERAL_PERCENT, ROUND_VOLUME)}%
+>> Макс. число одновременно открытых позиций: {TRADE_MAX_LEN}
+>> Открытые позиции: {TRADE}'''
+    send_message(bot, result_msg)
 
 
 def get_data(CONS_DATA: list[dict], count, bot):
@@ -78,47 +91,35 @@ def get_data(CONS_DATA: list[dict], count, bot):
     for name in NAMES_LIST:
         prev_count = count - INTERVAL_MINUTES
         prev_price = None
+        to_buy = False
         data_list = [data[name] for data in CONS_DATA]
         for data in data_list:
             if data.get(count) is not None:
                 cur_price = float(data.get(count))
             if data.get(prev_count) is not None:
                 prev_price = float(data.get(prev_count))
-        if (TRADE.get(name) is not None
-                and abs(TRADE.get(name) - cur_price)
-                / cur_price > TARGET_PERCENT / 100):
-            sell(name, cur_price, bot)
         if prev_price is not None:
             diff_percent = round(
-                (cur_price - prev_price) / cur_price * 100, 1
+                (cur_price - prev_price) / cur_price * 100, ROUND_VOLUME
                 )
             if diff_percent * -1 > GOLDEN_FIGURE:
+                to_buy = True
                 buy(name, cur_price, bot)
-        # тестовый вывод для отладки
-        if name == 'TSLA':
-            print(f'TSLA >> cur_price: {cur_price}, '
-                  f'prev_price: {prev_price}')
-            try:
-                print(f'diff_percent: {diff_percent}%')
-            except Exception:
-                pass
-            if TRADE.get(name) is not None:
-                print(f'в портфеле по {TRADE.get(name)}')
+        if (TRADE.get(name) is not None
+                and abs(TRADE.get(name) - cur_price)
+                / cur_price > TARGET_PERCENT / 100
+                and to_buy is False):
+            sell(name, cur_price, bot)
 
 
 def main():
     """Раз в установленный интервал отправляет запрос в интернеты и получает
        данные по выбранным тикерам. Собирает list CONS_DATA со значениями вида:
-       {'OKTA': {0: '95.76'}
+       {'OKTA': {0: '95.76'}}
        и отправляет его вместе с порядковым номером итерации в get_data().
     """
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
-    welcome_msg = f'''запуск скрипта с параметрами:
-    >> запрос котировок: каждые {RETRY_TIME} секунд
-    >> динамика отслеживается за {INTERVAL_MINUTES} интервалов
-    >> отслеживаемое движение: {GOLDEN_FIGURE}%
-    >> целевая прибыль/убыток: {TARGET_PERCENT}%'''
-    print(welcome_msg)
+    send_message(bot, WELCOME_MSG)
     count: int = 1
     prev_response = ''
     non_trade_count: int = 0
