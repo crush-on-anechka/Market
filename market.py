@@ -1,7 +1,11 @@
 from __future__ import annotations
+from tinkoff.invest import Client, MoneyValue, OrderDirection, OrderType
+from tinkoff.invest.services import MarketDataService
 from dotenv import load_dotenv
+from pprint import pprint
 import telegram
 import requests
+import figi
 import time
 import urls
 import os
@@ -10,22 +14,24 @@ load_dotenv()
 
 TELEGRAM_TOKEN: str = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID: str = os.getenv('TELEGRAM_CHAT_ID')
+SANDBOX_TOKEN: str = os.getenv('SANDBOX_TOKEN')
 
 PARAMS = {'fieldmap': 'indices.minimal'}
 URL_static = 'https://api.investing.com/api/financialdata/table/list/'
+SANDBOX_ID = 'd79541e3-7477-498b-a14a-71db19f7aafb'
 
 DATA: list = {}
 CONS_DATA: list = []
 NAMES_LIST: set = set()
 TRADE: dict = {}
 GENERAL_PERCENT: float = 0
-TRADE_MAX_LEN: int = 0
 ROUND_VOLUME: int = 2
+trade_max_len: int = 0
 
 RETRY_TIME = 60         #        60
-INTERVAL_MINUTES = 20   #        20
-GOLDEN_FIGURE = 2.1     # 2.1   3.1
-TARGET_PERCENT = 1.1    # 1.1   1.7
+INTERVAL_MINUTES = 0   #        20
+GOLDEN_FIGURE = 0.5     # 2.1   3.1
+TARGET_PERCENT = 0.3    # 1.1   1.7
 
 WELCOME_MSG = f'''запуск скрипта с параметрами:
     >> запрос котировок: каждые {RETRY_TIME} секунд
@@ -33,6 +39,41 @@ WELCOME_MSG = f'''запуск скрипта с параметрами:
     >> отслеживаемое движение: {GOLDEN_FIGURE}%
     >> целевая прибыль/убыток: {TARGET_PERCENT}%'''
 
+
+def get_tinkoff_last_prices():
+    with Client(SANDBOX_TOKEN) as sandbox:
+        market_data = sandbox.market_data
+        all_data = market_data.get_last_prices().last_prices
+        for data in all_data:
+            last_price = (data.price.units +
+                          data.price.nano / 10**9)
+            print(last_price)
+            break
+    return last_price
+
+    # with Client(SANDBOX_TOKEN) as sandbox:
+        # sandbox = sandbox.sandbox
+
+        # <----- открыть счет в песочнице ----->
+        # sandbox.open_sandbox_account()
+
+        # <----- пополнить счет----->
+        # sandbox.sandbox_pay_in(
+        #     account_id=SANDBOX_ID,
+        #     amount=MoneyValue(units=10000, currency='usd')
+        # )
+
+        # <----- купить позицию ----->
+        # sandbox.post_sandbox_order(
+        #     figi='BBG000B9XRY4',
+        #     quantity=8,
+        #     account_id=SANDBOX_ID,
+        #     order_id=str(time.time()*1000),
+        #     direction=OrderDirection.ORDER_DIRECTION_BUY,
+        #     order_type=OrderType.ORDER_TYPE_MARKET
+        # )
+
+get_tinkoff_last_prices()
 
 def make_urls_str():
     urls_str = ''
@@ -43,7 +84,7 @@ def make_urls_str():
 
 
 def send_message(bot, message):
-    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+    # bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     print(message)
 
 
@@ -71,10 +112,13 @@ def sell(name, cur_price, bot):
     send_message(bot, sell_msg)
     global GENERAL_PERCENT
     GENERAL_PERCENT += result
-    TRADE_MAX_LEN = max([num + 1 for num, keys in enumerate(TRADE.keys())])
+    trade_len = max([num + 1 for num, keys in enumerate(TRADE.keys())])
+    global trade_max_len
+    if trade_len > trade_max_len:
+        trade_max_len = trade_len
     TRADE.pop(name)
     result_msg = f'''>> Общий результат торговли: {round(GENERAL_PERCENT, ROUND_VOLUME)}%
->> Макс. число одновременно открытых позиций: {TRADE_MAX_LEN}
+>> Макс. число одновременно открытых позиций: {trade_max_len}
 >> Открытые позиции: {TRADE}'''
     send_message(bot, result_msg)
 
@@ -115,7 +159,7 @@ def get_data(CONS_DATA: list[dict], count, bot):
 def main():
     """Раз в установленный интервал отправляет запрос в интернеты и получает
        данные по выбранным тикерам. Собирает list CONS_DATA со значениями вида:
-       {'OKTA': {0: '95.76'}}
+       {'OKTA': {0: '95.76'}, ...}
        и отправляет его вместе с порядковым номером итерации в get_data().
     """
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
@@ -148,5 +192,5 @@ def main():
         time.sleep(RETRY_TIME)
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+    # main()
