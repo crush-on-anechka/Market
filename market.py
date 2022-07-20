@@ -26,10 +26,11 @@ NAMES_LIST: set = set()
 TRADE: dict = {}
 GENERAL_PERCENT: float = 0
 ROUND_VOLUME: int = 2
+POSITION_LIMIT: int = 1000
 trade_max_len: int = 0
 
-RETRY_TIME = 60         #        60
-INTERVAL_MINUTES = 0   #        20
+RETRY_TIME = 6         #        60
+INTERVAL_MINUTES = 3   #        20
 GOLDEN_FIGURE = 0.5     # 2.1   3.1
 TARGET_PERCENT = 0.3    # 1.1   1.7
 
@@ -40,40 +41,40 @@ WELCOME_MSG = f'''запуск скрипта с параметрами:
     >> целевая прибыль/убыток: {TARGET_PERCENT}%'''
 
 
+def tinkoff_manage():
+    with Client(SANDBOX_TOKEN) as sandbox:
+        # <----- открыть счет в песочнице ----->
+        # sandbox.sandbox.open_sandbox_account()
+
+        # <----- пополнить счет----->
+        # sandbox.sandbox.sandbox_pay_in(
+        #     account_id=SANDBOX_ID,
+        #     amount=MoneyValue(units=-16985, currency='usd')
+        # )
+
+        data = sandbox.sandbox.get_sandbox_positions(account_id=SANDBOX_ID)
+        print('Состав портфеля:')
+        for dt in data.money:
+            print(f'{dt.currency}: {dt.units}')
+        for pos in data.securities:
+            for tck, fg in figi.figi.items():
+                if fg == pos.figi:
+                    print(f'{tck}: {pos.balance} акций')
+
+
 def get_tinkoff_last_prices():
     with Client(SANDBOX_TOKEN) as sandbox:
         market_data = sandbox.market_data
         all_data = market_data.get_last_prices().last_prices
+        cur_prices = {}
         for data in all_data:
             last_price = (data.price.units +
                           data.price.nano / 10**9)
-            print(last_price)
+            cur_prices[data.figi] = last_price
+            print(cur_prices)
             break
-    return last_price
+    return cur_prices
 
-    # with Client(SANDBOX_TOKEN) as sandbox:
-        # sandbox = sandbox.sandbox
-
-        # <----- открыть счет в песочнице ----->
-        # sandbox.open_sandbox_account()
-
-        # <----- пополнить счет----->
-        # sandbox.sandbox_pay_in(
-        #     account_id=SANDBOX_ID,
-        #     amount=MoneyValue(units=10000, currency='usd')
-        # )
-
-        # <----- купить позицию ----->
-        # sandbox.post_sandbox_order(
-        #     figi='BBG000B9XRY4',
-        #     quantity=8,
-        #     account_id=SANDBOX_ID,
-        #     order_id=str(time.time()*1000),
-        #     direction=OrderDirection.ORDER_DIRECTION_BUY,
-        #     order_type=OrderType.ORDER_TYPE_MARKET
-        # )
-
-get_tinkoff_last_prices()
 
 def make_urls_str():
     urls_str = ''
@@ -99,6 +100,33 @@ def buy(name, cur_price, bot):
         send_message(bot, result_msg)
 
 
+def buy_tinkoff(name, cur_price, bot):
+    """Покупка в песочнице"""
+    try:
+        cur_figi = figi.figi.get(name)
+    except KeyError:
+        print('Позиция недоступна для торговли')
+    buy(name, cur_price, bot)
+    quantity = int(round(POSITION_LIMIT / cur_price, 0))
+    with Client(SANDBOX_TOKEN) as sandbox:
+        sandbox.sandbox.post_sandbox_order(
+            figi=cur_figi,
+            quantity=quantity,
+            account_id=SANDBOX_ID,
+            order_id=str(time.time()*1000),
+            direction=OrderDirection.ORDER_DIRECTION_BUY,
+            order_type=OrderType.ORDER_TYPE_MARKET
+        )
+        data = sandbox.sandbox.get_sandbox_positions(account_id=SANDBOX_ID)
+        print('Состав портфеля:')
+        for dt in data.money:
+            print(f'{dt.currency}: {dt.units}')
+        for pos in data.securities:
+            for tck, fg in figi.figi.items():
+                if fg == pos.figi:
+                    print(f'{tck}: {pos.balance} акций')
+
+
 def sell(name, cur_price, bot):
     """Вычисляет разницу между текущей ценой и ценой, зафиксированной
        в словаре TRADE, убирает компанию из TRADE, прибавляет результат
@@ -121,6 +149,37 @@ def sell(name, cur_price, bot):
 >> Макс. число одновременно открытых позиций: {trade_max_len}
 >> Открытые позиции: {TRADE}'''
     send_message(bot, result_msg)
+
+
+def sell_tinkoff(name, cur_price, bot):
+    """Продажа в песочнице"""
+    cur_figi = figi.figi.get(name)
+    with Client(SANDBOX_TOKEN) as sandbox:
+
+        data = sandbox.sandbox.get_sandbox_positions(account_id=SANDBOX_ID)
+        for pos in data.securities:
+            for tck, fg in figi.figi.items():
+                if fg == pos.figi and tck == name:
+                    quantity = pos.balance
+        try:
+            sandbox.sandbox.post_sandbox_order(
+                figi=cur_figi,
+                quantity=quantity,
+                account_id=SANDBOX_ID,
+                order_id=str(time.time()*1000),
+                direction=OrderDirection.ORDER_DIRECTION_SELL,
+                order_type=OrderType.ORDER_TYPE_MARKET
+            )
+            print(f'Продажа {quantity} акций {name}')
+            print(f'Состав портфеля до продажи {name}:')
+            for dt in data.money:
+                print(f'{dt.currency}: {dt.units}')
+            for pos in data.securities:
+                for tck, fg in figi.figi.items():
+                    if fg == pos.figi:
+                        print(f'{tck}: {pos.balance} акций')
+        except Exception:
+            print(f'При попытке продажи {name} что-то пошло не так')
 
 
 def get_data(CONS_DATA: list[dict], count, bot):
@@ -148,12 +207,13 @@ def get_data(CONS_DATA: list[dict], count, bot):
                 )
             if diff_percent * -1 > GOLDEN_FIGURE:
                 to_buy = True
-                buy(name, cur_price, bot)
+                buy_tinkoff(name, cur_price, bot)
         if (TRADE.get(name) is not None
                 and abs(TRADE.get(name) - cur_price)
                 / cur_price > TARGET_PERCENT / 100
                 and to_buy is False):
             sell(name, cur_price, bot)
+            sell_tinkoff(name, cur_price, bot)
 
 
 def main():
@@ -192,5 +252,5 @@ def main():
         time.sleep(RETRY_TIME)
 
 
-# if __name__ == '__main__':
-    # main()
+if __name__ == '__main__':
+    main()
