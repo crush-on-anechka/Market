@@ -96,7 +96,7 @@ def make_urls_str():
 
 
 def send_message(bot, message):
-    # bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+    bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     print(message)
 
 
