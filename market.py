@@ -22,21 +22,25 @@ SANDBOX_ID = 'd79541e3-7477-498b-a14a-71db19f7aafb'
 
 DATA: list = {}
 CONS_DATA: list = []
+
 NAMES_LIST: set = set()
+for name in urls.urls.keys():
+    NAMES_LIST.add(name)
+
 with open('trade.json', encoding='UTF-8') as file:
     try:
         TRADE = json.load(file)
     except Exception:
         TRADE = {}
+
 GENERAL_PERCENT: float = 0
 ROUND_VOLUME: int = 2
 POSITION_LIMIT: int = 1000
-trade_max_len: int = 0
 
 RETRY_TIME = 60         #        60
-INTERVAL_MINUTES = 0   #        20
-GOLDEN_FIGURE = 0.2     # 2.1   3.1
-TARGET_PERCENT = 0.1    # 1.1   1.7
+INTERVAL_MINUTES = 20   #        20
+GOLDEN_FIGURE = 3.1     # 2.1   3.1
+TARGET_PERCENT = 1.7    # 1.1   1.7
 
 WELCOME_MSG = f'''запуск скрипта с параметрами:
     >> запрос котировок: каждые {RETRY_TIME} секунд
@@ -46,7 +50,7 @@ WELCOME_MSG = f'''запуск скрипта с параметрами:
     >> Открытые позиции: {TRADE}'''
 
 
-def tinkoff_manage():
+def tinkoff_portfolio():
     # with Client(SANDBOX_TOKEN) as sandbox:
         # <----- открыть счет в песочнице ----->
         # sandbox.sandbox.open_sandbox_account()
@@ -56,7 +60,16 @@ def tinkoff_manage():
         #     account_id=SANDBOX_ID,
         #     amount=MoneyValue(units=-16985, currency='usd')
         # )
-    pass
+
+    with Client(SANDBOX_TOKEN) as sandbox:
+        data = sandbox.sandbox.get_sandbox_positions(account_id=SANDBOX_ID)
+        print('Состав портфеля:')
+        for dt in data.money:
+            print(f'{dt.currency}: {dt.units}')
+        for pos in data.securities:
+            for tck, fg in figi.figi.items():
+                if fg == pos.figi:
+                    print(f'{tck}: {pos.balance} акций')
 
 
 def get_tinkoff_last_prices():
@@ -89,13 +102,12 @@ def send_message(bot, message):
 
 def buy(name, cur_price, bot):
     """Если названия нет в словаре TRADE - добавляет"""
-    if name not in TRADE:
-        TRADE[name] = cur_price
-        buy_msg = f'{name}: покупка по {cur_price}'
-        send_message(bot, buy_msg)
-        result_msg = f'''>> Общий результат торговли: {round(GENERAL_PERCENT, ROUND_VOLUME)}%
+    TRADE[name] = cur_price
+    buy_msg = f'{name}: покупка по {cur_price}'
+    send_message(bot, buy_msg)
+    result_msg = f'''>> Общий результат торговли: {round(GENERAL_PERCENT, ROUND_VOLUME)}%
 >> Открытые позиции: {TRADE}'''
-        send_message(bot, result_msg)
+    send_message(bot, result_msg)
 
 
 def buy_tinkoff(name, cur_price, bot):
@@ -105,6 +117,8 @@ def buy_tinkoff(name, cur_price, bot):
     except KeyError:
         return 'Тикер не найден'
     quantity = int(round(POSITION_LIMIT / cur_price, 0))
+    if quantity == 0:
+        return f'{name} не куплена - высокая цена акции: {cur_price}'
     try:
         with Client(SANDBOX_TOKEN) as sandbox:
             sandbox.sandbox.post_sandbox_order(
@@ -144,7 +158,7 @@ def sell(name, cur_price, bot):
     global GENERAL_PERCENT
     GENERAL_PERCENT += result
     trade_len = max([num + 1 for num, keys in enumerate(TRADE.keys())])
-    global trade_max_len
+    trade_max_len: int = 0
     if trade_len > trade_max_len:
         trade_max_len = trade_len
     TRADE.pop(name)
@@ -163,6 +177,10 @@ def sell_tinkoff(name, cur_price, bot):
             for tck, fg in figi.figi.items():
                 if fg == pos.figi and tck == name:
                     quantity = pos.balance
+
+        cur_figi = 'BBG000B9XRY4'
+        quantity = 1
+
         try:
             sandbox.sandbox.post_sandbox_order(
                 figi=cur_figi,
@@ -188,7 +206,7 @@ def sell_tinkoff(name, cur_price, bot):
             print(f'При попытке продажи {name} что-то пошло не так: {error}')
 
 
-def get_data(CONS_DATA: list[dict], count, bot):
+def get_data(name, CONS_DATA: list[dict], count, bot):
     """Получает данные по каждой итерации из main, по каждой компании
        расчитывает текущую цену и цену на момент времени в прошлом за
        выбранный интервал.
@@ -197,29 +215,29 @@ def get_data(CONS_DATA: list[dict], count, bot):
        Если отрицательная разница между котировками превышает золотое
        число (цена падает) - buy() и выводит в терминал разницу котировок.
     """
-    for name in NAMES_LIST:
-        prev_count = count - INTERVAL_MINUTES
-        prev_price = None
-        to_buy = False
-        data_list = [data[name] for data in CONS_DATA]
-        for data in data_list:
-            if data.get(count) is not None:
-                cur_price = float(data.get(count))
-            if data.get(prev_count) is not None:
-                prev_price = float(data.get(prev_count))
-        if prev_price is not None:
-            diff_percent = round(
-                (cur_price - prev_price) / cur_price * 100, ROUND_VOLUME
-                )
-            if diff_percent * -1 > GOLDEN_FIGURE:
-                to_buy = True
+    prev_count = count - INTERVAL_MINUTES
+    prev_price = None
+    to_buy = False
+    data_list = [data[name] for data in CONS_DATA]
+    for data in data_list:
+        if data.get(count) is not None:
+            cur_price = float(data.get(count))
+        if data.get(prev_count) is not None:
+            prev_price = float(data.get(prev_count))
+    if prev_price is not None:
+        diff_percent = round(
+            (cur_price - prev_price) / cur_price * 100, ROUND_VOLUME
+            )
+        if diff_percent * -1 > GOLDEN_FIGURE:
+            to_buy = True
+            if name not in TRADE:
                 buy_tinkoff(name, cur_price, bot)
-        if (TRADE.get(name) is not None
-                and abs(TRADE.get(name) - cur_price)
-                / cur_price > TARGET_PERCENT / 100
-                and to_buy is False):
-            sell(name, cur_price, bot)
-            sell_tinkoff(name, cur_price, bot)
+    if (TRADE.get(name) is not None
+            and abs(TRADE.get(name) - cur_price)
+            / cur_price > TARGET_PERCENT / 100
+            and to_buy is False):
+        sell(name, cur_price, bot)
+        sell_tinkoff(name, cur_price, bot)
 
 
 def main():
@@ -230,6 +248,7 @@ def main():
     """
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     send_message(bot, WELCOME_MSG)
+    tinkoff_portfolio()
     count: int = 1
     prev_response = ''
     non_trade_count: int = 0
@@ -240,7 +259,8 @@ def main():
             url=f'{URL_static}{make_urls_str()}', params=PARAMS
             )
         if response.text != prev_response:
-            print(f'итерация {count}: скрипт запущен и получает данные')
+            print(f'успешная итерация {count}: скрипт получает свежие данные')
+            count += 1
             non_trade_count = 0
         else:
             non_trade_count += 1
@@ -249,22 +269,15 @@ def main():
         for data in response.json()['data']:
             name = data['symbol']
             cur_price = data['data'][1]
-            NAMES_LIST.add(name)
             DATA[name] = {count: cur_price}
         CONS_DATA.append(DATA.copy())
-        get_data(CONS_DATA, count, bot)
+        for name in NAMES_LIST:
+            get_data(name, CONS_DATA, count, bot)
         with open('trade.json', 'w') as file:
             json.dump(TRADE, file)
         prev_response = response.text
-        count += 1
         time.sleep(RETRY_TIME)
 
 
-def test():
-    TRADE = {'Tfdg': 45}
-    with open('trade.json', 'w+') as file:
-        json.dump(TRADE, file)
-
-
 if __name__ == '__main__':
-    test()
+    main()
