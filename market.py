@@ -245,23 +245,19 @@ def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     send_message(bot, WELCOME_MSG)
     tinkoff_portfolio(bot)
-    count: int = 1
+    with open('count_file.txt', 'r') as file:
+        count: int = int(file.read())
     prev_response = ''
-    non_trade_count: int = 0
     while True:
-        if non_trade_count > 60:
-            count = 1
         response = requests.get(
             url=f'{URL_static}{make_urls_str()}', params=PARAMS
             )
         if response.text != prev_response:
             print(f'успешная итерация {count}: скрипт получает свежие данные')
-            count += 1
-            non_trade_count = 0
+            with open('count_file.txt', 'w') as file:
+                file.write(str(count + 1))
         else:
-            non_trade_count += 1
-            print(f'итерация {count}: новые данные не поступают '
-                  f'{non_trade_count} мин.')
+            print(f'итерация {count}: новые данные не поступают')
         for data in response.json()['data']:
             name = data['symbol']
             cur_price = data['data'][1]
