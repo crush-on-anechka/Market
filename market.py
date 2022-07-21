@@ -50,7 +50,7 @@ WELCOME_MSG = f'''запуск скрипта с параметрами:
     >> Открытые позиции: {TRADE}'''
 
 
-def tinkoff_portfolio():
+def tinkoff_portfolio(bot):
     # with Client(SANDBOX_TOKEN) as sandbox:
         # <----- открыть счет в песочнице ----->
         # sandbox.sandbox.open_sandbox_account()
@@ -63,13 +63,13 @@ def tinkoff_portfolio():
 
     with Client(SANDBOX_TOKEN) as sandbox:
         data = sandbox.sandbox.get_sandbox_positions(account_id=SANDBOX_ID)
-        print('Состав портфеля:')
+        send_message(bot, 'Состав портфеля:')
         for dt in data.money:
-            print(f'{dt.currency}: {dt.units}')
+            send_message(bot, f'{dt.currency}: {dt.units}')
         for pos in data.securities:
             for tck, fg in figi.figi.items():
                 if fg == pos.figi:
-                    print(f'{tck}: {pos.balance} акций')
+                    send_message(bot, f'{tck}: {pos.balance} акций')
 
 
 def get_tinkoff_last_prices():
@@ -177,10 +177,6 @@ def sell_tinkoff(name, cur_price, bot):
             for tck, fg in figi.figi.items():
                 if fg == pos.figi and tck == name:
                     quantity = pos.balance
-
-        cur_figi = 'BBG000B9XRY4'
-        quantity = 1
-
         try:
             sandbox.sandbox.post_sandbox_order(
                 figi=cur_figi,
@@ -248,7 +244,7 @@ def main():
     """
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     send_message(bot, WELCOME_MSG)
-    tinkoff_portfolio()
+    tinkoff_portfolio(bot)
     count: int = 1
     prev_response = ''
     non_trade_count: int = 0
