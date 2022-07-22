@@ -37,7 +37,7 @@ GENERAL_PERCENT: float = 0
 ROUND_VOLUME: int = 2
 POSITION_LIMIT: int = 1000
 
-RETRY_TIME = 60         #        60
+RETRY_TIME = 6         #        60
 INTERVAL_MINUTES = 20   #        20
 GOLDEN_FIGURE = 3.1     # 2.1   3.1
 TARGET_PERCENT = 1.7    # 1.1   1.7
@@ -245,10 +245,10 @@ def main():
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     send_message(bot, WELCOME_MSG)
     tinkoff_portfolio(bot)
-    with open('count_file.txt', 'r') as file:
-        count: int = int(file.read())
     prev_response = ''
     while True:
+        with open('count_file.txt', 'r') as file:
+            count: int = int(file.read())
         response = requests.get(
             url=f'{URL_static}{make_urls_str()}', params=PARAMS
             )
