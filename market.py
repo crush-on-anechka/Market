@@ -256,6 +256,7 @@ def main():
             print(f'успешная итерация {count}: скрипт получает свежие данные')
             with open('count_file.txt', 'w') as file:
                 file.write(str(count + 1))
+                file.close()
         else:
             print(f'итерация {count}: новые данные не поступают')
         for data in response.json()['data']:
@@ -267,7 +268,9 @@ def main():
             get_data(name, CONS_DATA, count, bot)
         with open('trade.json', 'w') as file:
             json.dump(TRADE, file)
+            file.close()
         prev_response = response.text
+        print('--------------------------------------')
         time.sleep(RETRY_TIME)
 
 
