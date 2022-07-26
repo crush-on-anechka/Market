@@ -270,7 +270,6 @@ def main():
             json.dump(TRADE, file)
             file.close()
         prev_response = response.text
-        print('--------------------------------------')
         time.sleep(RETRY_TIME)
 
 
