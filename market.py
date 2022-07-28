@@ -241,5 +241,5 @@ def main():
         time.sleep(RETRY_TIME)
 
 
-# if __name__ == '__main__':
-#     main()
+if __name__ == '__main__':
+    main()
