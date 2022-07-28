@@ -169,6 +169,7 @@ def sell_tinkoff(name, cur_price, bot):
                 direction=OrderDirection.ORDER_DIRECTION_SELL,
                 order_type=OrderType.ORDER_TYPE_MARKET
             )
+            send_message(bot, f'Баланс, usd: {data.money[0].units}')
         except Exception as error:
             print(f'При попытке продажи {name} что-то пошло не так: {error}')
 
@@ -240,5 +241,5 @@ def main():
         time.sleep(RETRY_TIME)
 
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
