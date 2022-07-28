@@ -1,10 +1,10 @@
 from __future__ import annotations
-from tinkoff.invest import Client, OrderDirection, OrderType  # MoneyValue
+from tinkoff.invest import Client, OrderDirection, OrderType, MoneyValue
 # from tinkoff.invest.services import MarketDataService
 from dotenv import load_dotenv
+from pprint import pprint
 import telegram
 import requests
-import json
 import figi
 import time
 import urls
@@ -18,24 +18,20 @@ SANDBOX_TOKEN: str = os.getenv('SANDBOX_TOKEN')
 
 PARAMS = {'fieldmap': 'indices.minimal'}
 URL_static = 'https://api.investing.com/api/financialdata/table/list/'
-SANDBOX_ID = 'd79541e3-7477-498b-a14a-71db19f7aafb'
+SANDBOX_ID = '0f16a13f-91d1-4a0f-8ec7-d0971aa3324d'
 
 DATA: list = {}
 CONS_DATA: list = []
 
+TRADE: dict = {}
 NAMES_LIST: set = set()
 for name in urls.urls.keys():
     NAMES_LIST.add(name)
 
-with open('trade.json', encoding='UTF-8') as file:
-    try:
-        TRADE = json.load(file)
-    except Exception:
-        TRADE = {}
-
 GENERAL_PERCENT: float = 0
 ROUND_VOLUME: int = 2
-POSITION_LIMIT: int = 1000
+POSITION_LIMIT: int = 250
+TRADE_MAX_LEN: int = 42
 
 RETRY_TIME = 60         #        60
 INTERVAL_MINUTES = 20   #        20
@@ -62,14 +58,16 @@ def tinkoff_portfolio(bot):
         # )
 
     with Client(SANDBOX_TOKEN) as sandbox:
-        data = sandbox.sandbox.get_sandbox_positions(account_id=SANDBOX_ID)
-        send_message(bot, 'Состав портфеля:')
-        for dt in data.money:
-            send_message(bot, f'{dt.currency}: {dt.units}')
-        for pos in data.securities:
+        data = sandbox.sandbox.get_sandbox_portfolio(account_id=SANDBOX_ID)
+        for dt in data.positions:
             for tck, fg in figi.figi.items():
-                if fg == pos.figi:
-                    send_message(bot, f'{tck}: {pos.balance} акций')
+                if fg == dt.figi:
+                    price = (dt.average_position_price.units +
+                             dt.average_position_price.nano / 1000000000)
+                    TRADE[tck] = round(price, 1)
+        send_message(bot, 'Состав портфеля:')
+        send_message(bot, f'Баланс, usd: {data.positions[0].quantity.units}')
+        send_message(bot, TRADE)
 
 
 def get_tinkoff_last_prices():
@@ -129,17 +127,7 @@ def buy_tinkoff(name, cur_price, bot):
                 direction=OrderDirection.ORDER_DIRECTION_BUY,
                 order_type=OrderType.ORDER_TYPE_MARKET
             )
-            data = sandbox.sandbox.get_sandbox_positions(account_id=SANDBOX_ID)
             buy(name, cur_price, bot)
-            send_message(bot, 'Состав портфеля:')
-            for dt in data.money:
-                message = f'{dt.currency}: {dt.units}'
-                send_message(bot, message)
-            for pos in data.securities:
-                for tck, fg in figi.figi.items():
-                    if fg == pos.figi:
-                        message = f'{tck}: {pos.balance} акций'
-                        send_message(bot, message)
     except Exception as error:
         print(f'При покупке {name} возникла ошибка: {error}')
 
@@ -157,13 +145,8 @@ def sell(name, cur_price, bot):
     send_message(bot, sell_msg)
     global GENERAL_PERCENT
     GENERAL_PERCENT += result
-    trade_len = max([num + 1 for num, keys in enumerate(TRADE.keys())])
-    trade_max_len: int = 0
-    if trade_len > trade_max_len:
-        trade_max_len = trade_len
     TRADE.pop(name)
     result_msg = f'''>> Общий результат торговли: {round(GENERAL_PERCENT, ROUND_VOLUME)}%
->> Макс. число одновременно открытых позиций: {trade_max_len}
 >> Открытые позиции: {TRADE}'''
     send_message(bot, result_msg)
 
@@ -186,18 +169,6 @@ def sell_tinkoff(name, cur_price, bot):
                 direction=OrderDirection.ORDER_DIRECTION_SELL,
                 order_type=OrderType.ORDER_TYPE_MARKET
             )
-            sell_msg = f'Продажа {quantity} акций {name}'
-            portfolio_msg = f'Состав портфеля до продажи {name}:'
-            send_message(bot, sell_msg)
-            send_message(bot, portfolio_msg)
-            for dt in data.money:
-                message = f'{dt.currency}: {dt.units}'
-                send_message(bot, message)
-            for pos in data.securities:
-                for tck, fg in figi.figi.items():
-                    if fg == pos.figi:
-                        message = f'{tck}: {pos.balance} акций'
-                        send_message(bot, message)
         except Exception as error:
             print(f'При попытке продажи {name} что-то пошло не так: {error}')
 
@@ -226,7 +197,7 @@ def get_data(name, CONS_DATA: list[dict], count, bot):
             )
         if diff_percent * -1 > GOLDEN_FIGURE:
             to_buy = True
-            if name not in TRADE:
+            if name not in TRADE and len(TRADE) < TRADE_MAX_LEN:
                 buy_tinkoff(name, cur_price, bot)
     if (TRADE.get(name) is not None
             and abs(TRADE.get(name) - cur_price)
@@ -256,7 +227,6 @@ def main():
             print(f'успешная итерация {count}: скрипт получает свежие данные')
             with open('count_file.txt', 'w') as file:
                 file.write(str(count + 1))
-                file.close()
         else:
             print(f'итерация {count}: новые данные не поступают')
         for data in response.json()['data']:
@@ -266,9 +236,6 @@ def main():
         CONS_DATA.append(DATA.copy())
         for name in NAMES_LIST:
             get_data(name, CONS_DATA, count, bot)
-        with open('trade.json', 'w') as file:
-            json.dump(TRADE, file)
-            file.close()
         prev_response = response.text
         time.sleep(RETRY_TIME)
 
