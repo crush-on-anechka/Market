@@ -230,7 +230,7 @@ def main():
                 file.write(str(count + 1))
         else:
             print(f'итерация {count}: новые данные не поступают')
-        for data in response.json()['data']:
+        for data in response.json().get('data'):
             name = data['symbol']
             cur_price = data['data'][1]
             DATA[name] = {count: cur_price}
