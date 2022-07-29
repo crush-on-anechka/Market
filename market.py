@@ -59,6 +59,7 @@ def tinkoff_portfolio(bot):
 
     with Client(SANDBOX_TOKEN) as sandbox:
         data = sandbox.sandbox.get_sandbox_portfolio(account_id=SANDBOX_ID)
+        global TRADE
         for dt in data.positions:
             for tck, fg in figi.figi.items():
                 if fg == dt.figi:
