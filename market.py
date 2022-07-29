@@ -231,10 +231,13 @@ def main():
                 file.write(str(count + 1))
         else:
             print(f'итерация {count}: новые данные не поступают')
-        for data in response.json().get('data'):
-            name = data['symbol']
-            cur_price = data['data'][1]
-            DATA[name] = {count: cur_price}
+        try:
+            for data in response.json().get('data'):
+                name = data['symbol']
+                cur_price = data['data'][1]
+                DATA[name] = {count: cur_price}
+        except AttributeError as error:
+            print(f'ошибка в полученных данных: {error}')
         CONS_DATA.append(DATA.copy())
         for name in NAMES_LIST:
             get_data(name, CONS_DATA, count, bot)
