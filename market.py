@@ -3,6 +3,7 @@ from tinkoff.invest import Client, OrderDirection, OrderType, MoneyValue
 # from tinkoff.invest.services import MarketDataService
 from dotenv import load_dotenv
 from pprint import pprint
+import datetime
 import telegram
 import requests
 import figi
@@ -31,7 +32,8 @@ for name in urls.urls.keys():
 GENERAL_PERCENT: float = 0
 ROUND_VOLUME: int = 2
 POSITION_LIMIT: int = 250
-TRADE_MAX_LEN: int = 42
+TRADE_MAX_LEN: int = 40
+NANO: int = 1000000000
 
 RETRY_TIME = 60         #        60
 INTERVAL_MINUTES = 20   #        20
@@ -42,8 +44,7 @@ WELCOME_MSG = f'''запуск скрипта с параметрами:
     >> запрос котировок: каждые {RETRY_TIME} секунд
     >> динамика отслеживается за {INTERVAL_MINUTES} интервалов
     >> отслеживаемое движение: {GOLDEN_FIGURE}%
-    >> целевая прибыль/убыток: {TARGET_PERCENT}%
-    >> Открытые позиции: {TRADE}'''
+    >> целевая прибыль/убыток: {TARGET_PERCENT}%'''
 
 
 def tinkoff_portfolio(bot):
@@ -56,18 +57,37 @@ def tinkoff_portfolio(bot):
         #     account_id=SANDBOX_ID,
         #     amount=MoneyValue(units=-16985, currency='usd')
         # )
-
+    now = datetime.datetime.now()
+    start = now - datetime.timedelta(weeks=2)
     with Client(SANDBOX_TOKEN) as sandbox:
-        data = sandbox.sandbox.get_sandbox_portfolio(account_id=SANDBOX_ID)
-        global TRADE
-        for dt in data.positions:
+        portfolio = sandbox.sandbox.get_sandbox_portfolio(
+            account_id=SANDBOX_ID
+            )
+        portf_list = []
+        for pos in portfolio.positions:
+            portf_list.append(pos.figi)
+        data = sandbox.sandbox.get_sandbox_operations(
+            account_id=SANDBOX_ID,
+            from_=start,
+            to=now
+            )
+        for operation in data.operations:
             for tck, fg in figi.figi.items():
-                if fg == dt.figi:
-                    price = (dt.average_position_price.units +
-                             dt.average_position_price.nano / 1000000000)
-                    TRADE[tck] = round(price, 1)
+                if fg == operation.figi and fg in portf_list:
+                    if operation.type == 'Покупка ЦБ':
+                        price = (operation.price.units +
+                                 operation.price.nano / NANO)
+                        TRADE[tck] = round(price, ROUND_VOLUME)
+        shares_in_rub = (portfolio.total_amount_shares.units
+                         + portfolio.total_amount_shares.nano / NANO)
+        usdrub = (portfolio.positions[0].average_position_price.units
+                  + portfolio.positions[0].average_position_price.nano / NANO)
         send_message(bot, 'Состав портфеля:')
-        send_message(bot, f'Баланс, usd: {data.positions[0].quantity.units}')
+        send_message(
+            bot, f'Баланс, usd: {portfolio.positions[0].quantity.units}'
+            )
+        send_message(bot, f'Стоимость акций в портфеле, usd: '
+                          f'{shares_in_rub / usdrub}')
         send_message(bot, TRADE)
 
 
@@ -147,7 +167,7 @@ def sell(name, cur_price, bot):
     global GENERAL_PERCENT
     GENERAL_PERCENT += result
     TRADE.pop(name)
-    result_msg = f'''>> Общий результат торговли: {round(GENERAL_PERCENT, ROUND_VOLUME)}%
+    result_msg = f'''>> P&L на капитал: {round(GENERAL_PERCENT / TRADE_MAX_LEN, ROUND_VOLUME)}%
 >> Открытые позиции: {TRADE}'''
     send_message(bot, result_msg)
 
