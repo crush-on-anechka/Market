@@ -1,8 +1,9 @@
 from __future__ import annotations
-from tinkoff.invest import Client, OrderDirection, OrderType, MoneyValue
+from tinkoff.invest import Client, OrderDirection, OrderType
+# MoneyValue
 # from tinkoff.invest.services import MarketDataService
 from dotenv import load_dotenv
-from pprint import pprint
+# from pprint import pprint
 import datetime
 import telegram
 import requests
@@ -35,10 +36,10 @@ POSITION_LIMIT: int = 250
 TRADE_MAX_LEN: int = 40
 NANO: int = 1000000000
 
-RETRY_TIME = 60         #        60
-INTERVAL_MINUTES = 20   #        20
-GOLDEN_FIGURE = 3.1     # 2.1   3.1
-TARGET_PERCENT = 1.7    # 1.1   1.7
+RETRY_TIME = 60
+INTERVAL_MINUTES = 20
+GOLDEN_FIGURE = 3.1     # 2.1
+TARGET_PERCENT = 1.7    # 1.1
 
 WELCOME_MSG = f'''запуск скрипта с параметрами:
     >> запрос котировок: каждые {RETRY_TIME} секунд
@@ -73,22 +74,21 @@ def tinkoff_portfolio(bot):
             )
         for operation in data.operations:
             for tck, fg in figi.figi.items():
-                if fg == operation.figi and fg in portf_list:
-                    if operation.type == 'Покупка ЦБ':
-                        price = (operation.price.units +
-                                 operation.price.nano / NANO)
-                        TRADE[tck] = round(price, ROUND_VOLUME)
+                if (fg == operation.figi
+                   and fg in portf_list
+                   and operation.type == 'Покупка ЦБ'):
+                    price = (operation.price.units +
+                             operation.price.nano / NANO)
+                    TRADE[tck] = round(price, ROUND_VOLUME)
         shares_in_rub = (portfolio.total_amount_shares.units
                          + portfolio.total_amount_shares.nano / NANO)
         usdrub = (portfolio.positions[0].average_position_price.units
                   + portfolio.positions[0].average_position_price.nano / NANO)
-        send_message(bot, 'Состав портфеля:')
+        shares_in_usd = round(shares_in_rub / usdrub, ROUND_VOLUME)
         send_message(
-            bot, f'Баланс, usd: {portfolio.positions[0].quantity.units}'
-            )
-        send_message(bot, f'Стоимость акций в портфеле, usd: '
-                          f'{shares_in_rub / usdrub}')
-        send_message(bot, TRADE)
+            bot, f'Баланс, usd: {portfolio.positions[0].quantity.units}')
+        send_message(bot, f'Стоимость акций в портфеле, usd: {shares_in_usd}')
+        send_message(bot, f'Состав портфеля: {TRADE}')
 
 
 def get_tinkoff_last_prices():
