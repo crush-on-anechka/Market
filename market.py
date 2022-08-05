@@ -195,7 +195,7 @@ def sell_tinkoff(name, cur_price, bot):
             print(f'При попытке продажи {name} что-то пошло не так: {error}')
 
 
-def get_data(name, CONS_DATA: list[dict], count, bot):
+def get_data(name, CONS_DATA: list[dict], voo, count, bot):
     """Получает данные по каждой итерации из main, по каждой компании
        расчитывает текущую цену и цену на момент времени в прошлом за
        выбранный интервал.
@@ -220,11 +220,13 @@ def get_data(name, CONS_DATA: list[dict], count, bot):
         if diff_percent * -1 > GOLDEN_FIGURE:
             to_buy = True
             if name not in TRADE and len(TRADE) < TRADE_MAX_LEN:
+                print(f'S&P500 изменение за день: {voo}%')
                 buy_tinkoff(name, cur_price, bot)
     if (TRADE.get(name) is not None
             and abs(TRADE.get(name) - cur_price)
             / cur_price > TARGET_PERCENT / 100
             and to_buy is False):
+        print(f'S&P500 изменение за день: {voo}%')
         sell(name, cur_price, bot)
         sell_tinkoff(name, cur_price, bot)
 
@@ -253,6 +255,8 @@ def main():
             print(f'итерация {count}: новые данные не поступают')
         try:
             for data in response.json().get('data'):
+                if data['symbol'] == 'VOO':
+                    voo = data['data'][3]
                 name = data['symbol']
                 cur_price = data['data'][1]
                 DATA[name] = {count: cur_price}
@@ -260,7 +264,7 @@ def main():
             print(f'ошибка в полученных данных: {error}')
         CONS_DATA.append(DATA.copy())
         for name in NAMES_LIST:
-            get_data(name, CONS_DATA, count, bot)
+            get_data(name, CONS_DATA, voo, count, bot)
         prev_response = response.text
         time.sleep(RETRY_TIME)
 
