@@ -122,11 +122,9 @@ def send_message(bot, message):
 def buy(name, cur_price, bot):
     """Если названия нет в словаре TRADE - добавляет"""
     TRADE[name] = cur_price
-    buy_msg = f'{name}: покупка по {cur_price}'
+    buy_msg = f'''{name}: покупка по {cur_price}
+Открытые позиции: {TRADE}'''
     send_message(bot, buy_msg)
-    result_msg = f'''>> Общий результат торговли: {round(GENERAL_PERCENT, ROUND_VOLUME)}%
->> Открытые позиции: {TRADE}'''
-    send_message(bot, result_msg)
 
 
 def buy_tinkoff(name, cur_price, bot):
@@ -137,7 +135,8 @@ def buy_tinkoff(name, cur_price, bot):
         return 'Тикер не найден'
     quantity = int(round(POSITION_LIMIT / cur_price, 0))
     if quantity == 0:
-        return f'{name} не куплена - высокая цена акции: {cur_price}'
+        high_price_msg = f'{name} не куплена - высокая цена акции: {cur_price}'
+        return send_message(bot, high_price_msg)
     try:
         with Client(SANDBOX_TOKEN) as sandbox:
             sandbox.sandbox.post_sandbox_order(
@@ -208,6 +207,7 @@ def get_data(name, CONS_DATA: list[dict], voo, count, bot):
     prev_price = None
     to_buy = False
     data_list = [data[name] for data in CONS_DATA]
+    voo_msg = f'S&P500 изменение за день: {voo}%'
     for data in data_list:
         if data.get(count) is not None:
             cur_price = float(data.get(count))
@@ -220,13 +220,13 @@ def get_data(name, CONS_DATA: list[dict], voo, count, bot):
         if diff_percent * -1 > GOLDEN_FIGURE:
             to_buy = True
             if name not in TRADE and len(TRADE) < TRADE_MAX_LEN:
-                print(f'S&P500 изменение за день: {voo}%')
+                send_message(bot, voo_msg)
                 buy_tinkoff(name, cur_price, bot)
     if (TRADE.get(name) is not None
             and abs(TRADE.get(name) - cur_price)
             / cur_price > TARGET_PERCENT / 100
             and to_buy is False):
-        print(f'S&P500 изменение за день: {voo}%')
+        send_message(bot, voo_msg)
         sell(name, cur_price, bot)
         sell_tinkoff(name, cur_price, bot)
 
