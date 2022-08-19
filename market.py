@@ -3,7 +3,7 @@ from tinkoff.invest import Client, OrderDirection, OrderType
 # MoneyValue
 # from tinkoff.invest.services import MarketDataService
 from dotenv import load_dotenv
-# from pprint import pprint
+from pprint import pprint
 import datetime
 import telegram
 import requests
@@ -16,11 +16,17 @@ load_dotenv()
 
 TELEGRAM_TOKEN: str = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID: str = os.getenv('TELEGRAM_CHAT_ID')
+# <-----------------------------\/\/\/--------------------------------->
 SANDBOX_TOKEN: str = os.getenv('SANDBOX_TOKEN')
+# TINKOFF_TOKEN: str = os.getenv('TINKOFF_TOKEN')
+# <-----------------------------/\/\/\--------------------------------->
 
 PARAMS = {'fieldmap': 'indices.minimal'}
 URL_static = 'https://api.investing.com/api/financialdata/table/list/'
+# <-----------------------------\/\/\/--------------------------------->
 SANDBOX_ID = '0f16a13f-91d1-4a0f-8ec7-d0971aa3324d'
+# TINKOFF_ID = ''
+# <-----------------------------/\/\/\--------------------------------->
 
 DATA: list = {}
 CONS_DATA: list = []
@@ -34,15 +40,15 @@ GENERAL_PERCENT: float = 0
 ROUND_VOLUME: int = 2
 POSITION_LIMIT: int = 250
 TRADE_MAX_LEN: int = 40
-NANO: int = 1000000000
+NANO: int = 10**9
 
-RETRY_TIME = 60
+RETRY_TIME_SEC = 60
 INTERVAL_MINUTES = 20
 GOLDEN_FIGURE = 3.1     # 2.1
 TARGET_PERCENT = 1.7    # 1.1
 
 WELCOME_MSG = f'''запуск скрипта с параметрами:
-    >> запрос котировок: каждые {RETRY_TIME} секунд
+    >> запрос котировок: каждые {RETRY_TIME_SEC} секунд
     >> динамика отслеживается за {INTERVAL_MINUTES} интервалов
     >> отслеживаемое движение: {GOLDEN_FIGURE}%
     >> целевая прибыль/убыток: {TARGET_PERCENT}%'''
@@ -60,15 +66,21 @@ def tinkoff_portfolio(bot):
         # )
     now = datetime.datetime.now()
     start = now - datetime.timedelta(weeks=2)
+    # <-----------------------------\/\/\/--------------------------------->
     with Client(SANDBOX_TOKEN) as sandbox:
+        # portfolio = tinkoff.operations.get_portfolio()
         portfolio = sandbox.sandbox.get_sandbox_portfolio(
             account_id=SANDBOX_ID
+    # <-----------------------------/\/\/\--------------------------------->v
             )
         portf_list = []
         for pos in portfolio.positions:
             portf_list.append(pos.figi)
+    # <-----------------------------\/\/\/--------------------------------->
+        # data = tinkoff.operations.get_operations()
         data = sandbox.sandbox.get_sandbox_operations(
             account_id=SANDBOX_ID,
+    # <-----------------------------/\/\/\--------------------------------->
             from_=start,
             to=now
             )
@@ -82,11 +94,16 @@ def tinkoff_portfolio(bot):
                     TRADE[tck] = round(price, ROUND_VOLUME)
         shares_in_rub = (portfolio.total_amount_shares.units
                          + portfolio.total_amount_shares.nano / NANO)
+# <-----------------------------\/\/\/--------------------------------->
         usdrub = (portfolio.positions[0].average_position_price.units
+        # usdrub = (portfolio.positions[1].current_price.units
                   + portfolio.positions[0].average_position_price.nano / NANO)
+                #   + portfolio.positions[1].current_price.nano / NANO)
         shares_in_usd = round(shares_in_rub / usdrub, ROUND_VOLUME)
         send_message(
             bot, f'Баланс, usd: {portfolio.positions[0].quantity.units}')
+            # bot, f'Баланс, usd: {portfolio.positions[1].quantity.units}')
+# <-----------------------------/\/\/\--------------------------------->
         send_message(bot, f'Стоимость акций в портфеле, usd: {shares_in_usd}')
         send_message(bot, f'Состав портфеля: {TRADE}')
 
@@ -138,11 +155,14 @@ def buy_tinkoff(name, cur_price, bot):
         high_price_msg = f'{name} не куплена - высокая цена акции: {cur_price}'
         return send_message(bot, high_price_msg)
     try:
+    # <-----------------------------\/\/\/--------------------------------->
         with Client(SANDBOX_TOKEN) as sandbox:
+            # tinkoff.orders.post_order
             sandbox.sandbox.post_sandbox_order(
                 figi=cur_figi,
                 quantity=quantity,
                 account_id=SANDBOX_ID,
+    # <-----------------------------/\/\/\--------------------------------->
                 order_id=str(time.time()*1000),
                 direction=OrderDirection.ORDER_DIRECTION_BUY,
                 order_type=OrderType.ORDER_TYPE_MARKET
@@ -174,17 +194,23 @@ def sell(name, cur_price, bot):
 def sell_tinkoff(name, cur_price, bot):
     """Продажа в песочнице"""
     cur_figi = figi.figi.get(name)
+    # <-----------------------------\/\/\/--------------------------------->
     with Client(SANDBOX_TOKEN) as sandbox:
+        # data = tinkoff.operations.get_positions()
         data = sandbox.sandbox.get_sandbox_positions(account_id=SANDBOX_ID)
+    # <-----------------------------/\/\/\--------------------------------->
         for pos in data.securities:
             for tck, fg in figi.figi.items():
                 if fg == pos.figi and tck == name:
                     quantity = pos.balance
         try:
+    # <-----------------------------\/\/\/--------------------------------->
+            # tinkoff.orders.post_order
             sandbox.sandbox.post_sandbox_order(
                 figi=cur_figi,
                 quantity=quantity,
                 account_id=SANDBOX_ID,
+    # <-----------------------------/\/\/\--------------------------------->
                 order_id=str(time.time()*1000),
                 direction=OrderDirection.ORDER_DIRECTION_SELL,
                 order_type=OrderType.ORDER_TYPE_MARKET
@@ -194,7 +220,7 @@ def sell_tinkoff(name, cur_price, bot):
             print(f'При попытке продажи {name} что-то пошло не так: {error}')
 
 
-def get_data(name, CONS_DATA: list[dict], voo, count, bot):
+def calculation(name, CONS_DATA: list[dict], voo, count, bot):
     """Получает данные по каждой итерации из main, по каждой компании
        расчитывает текущую цену и цену на момент времени в прошлом за
        выбранный интервал.
@@ -231,11 +257,25 @@ def get_data(name, CONS_DATA: list[dict], voo, count, bot):
         sell_tinkoff(name, cur_price, bot)
 
 
+def get_consolidated_data(count, response):
+    try:
+        for data in response.json().get('data'):
+            if data['symbol'] == 'VOO':
+                voo = data['data'][3]
+            name = data['symbol']
+            cur_price = data['data'][1]
+            DATA[name] = {count: cur_price}
+    except AttributeError as error:
+        print(f'ошибка в полученных данных: {error}')
+    CONS_DATA.append(DATA.copy())
+    return voo
+
+
 def main():
     """Раз в установленный интервал отправляет запрос в интернеты и получает
        данные по выбранным тикерам. Собирает list CONS_DATA со значениями вида:
        {'OKTA': {0: '95.76'}, ...}
-       и отправляет его вместе с порядковым номером итерации в get_data().
+       и отправляет его вместе с порядковым номером итерации в calculation().
     """
     bot = telegram.Bot(token=TELEGRAM_TOKEN)
     send_message(bot, WELCOME_MSG)
@@ -253,20 +293,11 @@ def main():
                 file.write(str(count + 1))
         else:
             print(f'итерация {count}: новые данные не поступают')
-        try:
-            for data in response.json().get('data'):
-                if data['symbol'] == 'VOO':
-                    voo = data['data'][3]
-                name = data['symbol']
-                cur_price = data['data'][1]
-                DATA[name] = {count: cur_price}
-        except AttributeError as error:
-            print(f'ошибка в полученных данных: {error}')
-        CONS_DATA.append(DATA.copy())
+        voo = get_consolidated_data(count, response)
         for name in NAMES_LIST:
-            get_data(name, CONS_DATA, voo, count, bot)
+            calculation(name, CONS_DATA, voo, count, bot)
         prev_response = response.text
-        time.sleep(RETRY_TIME)
+        time.sleep(RETRY_TIME_SEC)
 
 
 if __name__ == '__main__':
