@@ -4,6 +4,7 @@ from tinkoff.invest import Client, OrderDirection, OrderType
 # from tinkoff.invest.services import MarketDataService
 from dotenv import load_dotenv
 from pprint import pprint
+import calendar
 import datetime
 import telegram
 import requests
@@ -46,6 +47,8 @@ RETRY_TIME_SEC = 60
 INTERVAL_MINUTES = 20
 GOLDEN_FIGURE = 3.1     # 2.1
 TARGET_PERCENT = 1.7    # 1.1
+
+OFFDAY_SEC = 86400
 
 WELCOME_MSG = f'''запуск скрипта с параметрами:
     >> запрос котировок: каждые {RETRY_TIME_SEC} секунд
@@ -299,6 +302,11 @@ def main():
         for name in NAMES_LIST:
             calculation(name, CONS_DATA, voo, count, bot)
         prev_response = response.text
+        current_weekday = datetime.date.weekday(datetime.date.today())
+        if current_weekday == 5:
+            send_message(bot, 'Суббота. Увидимся через двое суток')
+            time.sleep(OFFDAY_SEC)
+            send_message(bot, 'Возвращаюсь к работе')
         time.sleep(RETRY_TIME_SEC)
 
 
