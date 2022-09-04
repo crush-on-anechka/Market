@@ -95,10 +95,10 @@ def tinkoff_portfolio(bot):
         shares_in_rub = (portfolio.total_amount_shares.units
                          + portfolio.total_amount_shares.nano / NANO)
 # <-----------------------------\/\/\/--------------------------------->
-        usdrub = (portfolio.positions[0].average_position_price.units
-        # usdrub = (portfolio.positions[1].current_price.units
-                  + portfolio.positions[0].average_position_price.nano / NANO)
-                #   + portfolio.positions[1].current_price.nano / NANO)
+        usdrub = (portfolio.positions[0].current_price.units
+        # usdrub = (portfolio.positions[1].average_position_price.units
+                  + portfolio.positions[0].current_price.nano / NANO)
+                #   + portfolio.positions[1].average_position_price.nano / NANO)
         shares_in_usd = round(shares_in_rub / usdrub, ROUND_VOLUME)
         send_message(
             bot, f'Баланс, usd: {portfolio.positions[0].quantity.units}')
@@ -215,7 +215,9 @@ def sell_tinkoff(name, cur_price, bot):
                 direction=OrderDirection.ORDER_DIRECTION_SELL,
                 order_type=OrderType.ORDER_TYPE_MARKET
             )
+    # <-----------------------------\/\/\/--------check_this!!!---------------->
             send_message(bot, f'Баланс, usd: {data.money[0].units}')
+    # <-----------------------------/\/\/\--------------------------------->
         except Exception as error:
             print(f'При попытке продажи {name} что-то пошло не так: {error}')
 
