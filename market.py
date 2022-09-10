@@ -48,7 +48,7 @@ INTERVAL_MINUTES = 20
 GOLDEN_FIGURE = 3.1     # 2.1
 TARGET_PERCENT = 1.7    # 1.1
 
-OFFDAY_SEC = 86400
+OFFDAY_SEC = 172800
 
 WELCOME_MSG = f'''запуск скрипта с параметрами:
     >> запрос котировок: каждые {RETRY_TIME_SEC} секунд
@@ -58,15 +58,7 @@ WELCOME_MSG = f'''запуск скрипта с параметрами:
 
 
 def tinkoff_portfolio(bot):
-    # with Client(SANDBOX_TOKEN) as sandbox:
-        # <----- открыть счет в песочнице ----->
-        # sandbox.sandbox.open_sandbox_account()
 
-        # <----- пополнить счет----->
-        # sandbox.sandbox.sandbox_pay_in(
-        #     account_id=SANDBOX_ID,
-        #     amount=MoneyValue(units=-16985, currency='usd')
-        # )
     now = datetime.datetime.now()
     start = now - datetime.timedelta(weeks=2)
     # <-----------------------------\/\/\/--------------------------------->
@@ -109,21 +101,6 @@ def tinkoff_portfolio(bot):
 # <-----------------------------/\/\/\--------------------------------->
         send_message(bot, f'Стоимость акций в портфеле, usd: {shares_in_usd}')
         send_message(bot, f'Состав портфеля: {TRADE}')
-
-
-def get_tinkoff_last_prices():
-    # with Client(SANDBOX_TOKEN) as sandbox:
-    #     market_data = sandbox.market_data
-    #     all_data = market_data.get_last_prices().last_prices
-    #     cur_prices = {}
-    #     for data in all_data:
-    #         last_price = (data.price.units +
-    #                       data.price.nano / 10**9)
-    #         cur_prices[data.figi] = last_price
-    #         print(cur_prices)
-    #         break
-    # return cur_prices
-    pass
 
 
 def make_urls_str():
