@@ -1,10 +1,6 @@
 from __future__ import annotations
 from tinkoff.invest import Client, OrderDirection, OrderType
-# MoneyValue
-# from tinkoff.invest.services import MarketDataService
 from dotenv import load_dotenv
-from pprint import pprint
-import calendar
 import datetime
 import telegram
 import requests
@@ -17,17 +13,11 @@ load_dotenv()
 
 TELEGRAM_TOKEN: str = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID: str = os.getenv('TELEGRAM_CHAT_ID')
-# <-----------------------------\/\/\/--------------------------------->
 SANDBOX_TOKEN: str = os.getenv('SANDBOX_TOKEN')
-# TINKOFF_TOKEN: str = os.getenv('TINKOFF_TOKEN')
-# <-----------------------------/\/\/\--------------------------------->
 
 PARAMS = {'fieldmap': 'indices.minimal'}
 URL_static = 'https://api.investing.com/api/financialdata/table/list/'
-# <-----------------------------\/\/\/--------------------------------->
 SANDBOX_ID = '0f16a13f-91d1-4a0f-8ec7-d0971aa3324d'
-# TINKOFF_ID = ''
-# <-----------------------------/\/\/\--------------------------------->
 
 DATA: list = {}
 CONS_DATA: list = []
@@ -61,21 +51,15 @@ def tinkoff_portfolio(bot):
 
     now = datetime.datetime.now()
     start = now - datetime.timedelta(weeks=2)
-    # <-----------------------------\/\/\/--------------------------------->
     with Client(SANDBOX_TOKEN) as sandbox:
-        # portfolio = tinkoff.operations.get_portfolio()
         portfolio = sandbox.sandbox.get_sandbox_portfolio(
             account_id=SANDBOX_ID
-    # <-----------------------------/\/\/\--------------------------------->v
             )
         portf_list = []
         for pos in portfolio.positions:
             portf_list.append(pos.figi)
-    # <-----------------------------\/\/\/--------------------------------->
-        # data = tinkoff.operations.get_operations()
         data = sandbox.sandbox.get_sandbox_operations(
             account_id=SANDBOX_ID,
-    # <-----------------------------/\/\/\--------------------------------->
             from_=start,
             to=now
             )
@@ -89,16 +73,11 @@ def tinkoff_portfolio(bot):
                     TRADE[tck] = round(price, ROUND_VOLUME)
         shares_in_rub = (portfolio.total_amount_shares.units
                          + portfolio.total_amount_shares.nano / NANO)
-# <-----------------------------\/\/\/--------------------------------->
         usdrub = (portfolio.positions[0].current_price.units
-        # usdrub = (portfolio.positions[1].average_position_price.units
                   + portfolio.positions[0].current_price.nano / NANO)
-                #   + portfolio.positions[1].average_position_price.nano / NANO)
         shares_in_usd = round(shares_in_rub / usdrub, ROUND_VOLUME)
         send_message(
             bot, f'Баланс, usd: {portfolio.positions[0].quantity.units}')
-            # bot, f'Баланс, usd: {portfolio.positions[1].quantity.units}')
-# <-----------------------------/\/\/\--------------------------------->
         send_message(bot, f'Стоимость акций в портфеле, usd: {shares_in_usd}')
         send_message(bot, f'Состав портфеля: {TRADE}')
 
@@ -135,14 +114,11 @@ def buy_tinkoff(name, cur_price, bot):
         high_price_msg = f'{name} не куплена - высокая цена акции: {cur_price}'
         return send_message(bot, high_price_msg)
     try:
-    # <-----------------------------\/\/\/--------------------------------->
         with Client(SANDBOX_TOKEN) as sandbox:
-            # tinkoff.orders.post_order
             sandbox.sandbox.post_sandbox_order(
                 figi=cur_figi,
                 quantity=quantity,
                 account_id=SANDBOX_ID,
-    # <-----------------------------/\/\/\--------------------------------->
                 order_id=str(time.time()*1000),
                 direction=OrderDirection.ORDER_DIRECTION_BUY,
                 order_type=OrderType.ORDER_TYPE_MARKET
@@ -174,30 +150,22 @@ def sell(name, cur_price, bot):
 def sell_tinkoff(name, cur_price, bot):
     """Продажа в песочнице"""
     cur_figi = figi.figi.get(name)
-    # <-----------------------------\/\/\/--------------------------------->
     with Client(SANDBOX_TOKEN) as sandbox:
-        # data = tinkoff.operations.get_positions()
         data = sandbox.sandbox.get_sandbox_positions(account_id=SANDBOX_ID)
-    # <-----------------------------/\/\/\--------------------------------->
         for pos in data.securities:
             for tck, fg in figi.figi.items():
                 if fg == pos.figi and tck == name:
                     quantity = pos.balance
         try:
-    # <-----------------------------\/\/\/--------------------------------->
-            # tinkoff.orders.post_order
             sandbox.sandbox.post_sandbox_order(
                 figi=cur_figi,
                 quantity=quantity,
                 account_id=SANDBOX_ID,
-    # <-----------------------------/\/\/\--------------------------------->
                 order_id=str(time.time()*1000),
                 direction=OrderDirection.ORDER_DIRECTION_SELL,
                 order_type=OrderType.ORDER_TYPE_MARKET
             )
-    # <-----------------------------\/\/\/--------check_this!!!---------------->
             send_message(bot, f'Баланс, usd: {data.money[0].units}')
-    # <-----------------------------/\/\/\--------------------------------->
         except Exception as error:
             print(f'При попытке продажи {name} что-то пошло не так: {error}')
 
