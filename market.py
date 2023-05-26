@@ -17,7 +17,7 @@ SANDBOX_TOKEN: str = os.getenv('SANDBOX_TOKEN')
 
 PARAMS = {'fieldmap': 'indices.minimal'}
 URL_static = 'https://api.investing.com/api/financialdata/table/list/'
-SANDBOX_ID = '0f16a13f-91d1-4a0f-8ec7-d0971aa3324d'
+SANDBOX_ID: str = os.getenv('SANDBOX_ID')
 
 DATA: list = {}
 CONS_DATA: list = []
